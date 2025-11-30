@@ -43,11 +43,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'audits.apps.AuditConfig',
 
     #local apps
     'users',
     'projects',
-    'audits',
 
 
 
