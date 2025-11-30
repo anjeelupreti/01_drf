@@ -13,8 +13,6 @@ from .serializers import (
 )
 from .permissions import IsSuperAdmin, IsCountryAdminOrSuperAdmin
 
-
-
 class BaseUserView:
     permission_classes = [IsAuthenticated, IsCountryAdminOrSuperAdmin]
     
@@ -29,23 +27,18 @@ class BaseUserView:
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    """
-    User login endpoint that returns JWT tokens
-    """
+ 
     serializer = UserLoginSerializer(data=request.data)
     
     if serializer.is_valid():
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
         
-        # Authenticate user
         user = authenticate(request, email=email, password=password)
         
         if user is not None and user.is_active:
-            # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             
-            # Get user data
             user_data = UserSerializer(user).data
             
             return Response({
@@ -65,15 +58,34 @@ class UserListView(BaseUserView, generics.ListAPIView):
     serializer_class = UserSerializer
 
 class UserCreateView(generics.CreateAPIView):
-    """
-    Create new users with role-based permissions
-    """
+
     queryset = User.objects.all()
     serializer_class = UserCreateSerializer
     permission_classes = [IsAuthenticated, IsCountryAdminOrSuperAdmin]
+    
+    def perform_create(self, serializer):
+        
+        user = serializer.save()
+        user._audit_user = self.request.user  
 
 class UserDetailView(BaseUserView, generics.RetrieveAPIView):
     serializer_class = UserSerializer
+
+class UserUpdateView(BaseUserView, generics.UpdateAPIView):
+   
+    serializer_class = UserSerializer
+    
+    def perform_update(self, serializer):
+        
+        user = serializer.save()
+        user._audit_user = self.request.user 
+
+class UserDeleteView(BaseUserView, generics.DestroyAPIView):
+   
+    def perform_destroy(self, instance):
+       
+        instance._audit_user = self.request.user  
+        instance.delete()
 
 class CountryListView(generics.ListAPIView):
     """
@@ -87,11 +99,8 @@ class CountryListView(generics.ListAPIView):
         user = self.request.user
         
         if user.is_super_admin:
-            # Super Admin can see all countries
             return Country.objects.all()
         elif user.is_country_admin:
-            # Country Admin can only see their own country
             return Country.objects.filter(id=user.country_id)
         
-        # Members can see all countries (or adjust as needed)
         return Country.objects.all()

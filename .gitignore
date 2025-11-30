@@ -117,3 +117,4 @@ logs/
 # Project specific
 /backups/
 /deploy/
+test.py
